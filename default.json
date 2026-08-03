@@ -1,0 +1,40 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Etc/UTC",
+  "description": [
+    "Shared update policy. It decides by update type, never by package name: a name list is what makes a config unportable, so names stay in the repository that knows what they mean.",
+    "The line it draws: automerge whatever costs a revert when it goes wrong, and hold whatever costs data or an outage. A repository tightens this by adding automerge:false rules for its own stateful pieces, and widens it by adding minor automerge for the stateless ones.",
+    "This assumes the repository has checks worth waiting for. Renovate merges only on green, so a repo with no CI gets an automerge that proves nothing."
+  ],
+  "dependencyDashboard": true,
+  "internalChecksFilter": "strict",
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 4,
+  "minimumReleaseAge": "7 days",
+  "platformAutomerge": false,
+  "packageRules": [
+    {
+      "description": "Digest updates carry no version change - the tag already said what it wanted, and this is how a pinned SHA stays current instead of rotting.",
+      "matchUpdateTypes": ["digest", "pin", "pinDigest"],
+      "automerge": true
+    },
+    {
+      "description": "Patches are bug fixes by definition. 14 days rather than the global 7: an automerged release is one nobody reads first, which is exactly the window a compromised package needs to be pulled from the registry.",
+      "matchUpdateTypes": ["patch"],
+      "minimumReleaseAge": "14 days",
+      "automerge": true
+    },
+    {
+      "description": "Majors are never automerged, whatever else a repository says. A breaking change is the one case where reading the changelog IS the work.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Merging at night keeps a bad automerge from landing mid-workday, which matters most where merge means deploy.",
+      "matchUpdateTypes": ["digest", "pin", "pinDigest", "patch", "minor"],
+      "automergeSchedule": ["after 1am and before 5am"]
+    }
+  ]
+}
