@@ -1,23 +1,23 @@
 # renovate-config
 
-Общая политика обновлений для моих репозиториев. Два слоя, подключаются независимо:
+Shared update policy for my repositories. Two layers, wired in independently:
 
-| Слой | Про что | Кому |
+| Layer | Decides | For |
 |---|---|---|
-| `renovate-config` | тип обновления | всем |
-| `renovate-config:k8s-platform` | классификация типовых компонентов кластера | тем, у кого Kubernetes |
+| `renovate-config` | update type | everyone |
+| `renovate-config:k8s-platform` | classification of the usual cluster components | anyone running Kubernetes |
 
-Второй слой отдельный намеренно: это мнение о конкретном софте, а не о типах обновлений, и
-репозиторию без кластера оно не нужно.
+The second layer is separate on purpose: it is an opinion about specific software rather than
+about update types, and a repository without a cluster has no use for it.
 
-## Как подключить к репозиторию
+## Wiring it into a repository
 
-1. **Поставить Renovate на репозиторий** (если ещё не стоит) - приложение
-   [Mend Renovate](https://github.com/apps/renovate), в его настройках отметить нужный репозиторий.
-   Сюда, в репозиторий с пресетами, ставить ничего не нужно: он публичный, и Renovate читает
-   пресеты из публичных репозиториев без установки.
+1. **Install Renovate on the repository** (if it is not there yet) - the
+   [Mend Renovate](https://github.com/apps/renovate) app, with the repository selected in its
+   settings. Nothing needs to be installed on this repository: it is public, and Renovate reads
+   presets from public repositories without being installed on them.
 
-2. **Положить `renovate.json` в корень** своего репозитория:
+2. **Put `renovate.json` in the root** of your repository:
 
    ```json
    {
@@ -29,66 +29,67 @@
    }
    ```
 
-   Без кластера вторую строку не подключать.
+   Drop the second line if there is no cluster.
 
-3. **Проверить конфиг до пуша** - валидатор разрешает и внешние пресеты, поэтому опечатка в
-   строке `extends` видна сразу:
+3. **Validate before pushing** - the validator resolves remote presets too, so a typo in the
+   `extends` line surfaces immediately:
 
    ```bash
    npx --yes --package renovate -- renovate-config-validator
    ```
 
-   Запускать без аргументов, из корня репозитория: если передать путь к файлу, валидатор сверит
-   его со схемой глобального конфига и пропустит то, что должен был отклонить.
+   Run it with no arguments, from the repository root: given a path, it validates against the
+   global-config schema instead and passes files it should reject.
 
-4. **Убедиться, что пресет доехал** - после первого прогона Renovate заводит issue
-   «Dependency Dashboard». Неразрешённый пресет виден там же отдельным блоком с ошибкой.
+4. **Confirm the preset landed** - after its first run Renovate opens a "Dependency Dashboard"
+   issue. An unresolved preset shows up there as its own error block.
 
-Дальше поверх пресетов дописываются локальные правила - см. «Чего пресеты не решают» ниже.
+Local rules go on top of the presets - see "What the presets do not decide" below.
 
-Живой пример подключения со всеми локальными исключениями:
+A live example with every local exception:
 [smhomelab-infrastructure/renovate.json](https://github.com/mshykhov/smhomelab-infrastructure/blob/master/renovate.json).
 
-## Что решает базовый пресет
+## What the base preset decides
 
-Только то, что не зависит от проекта - тип обновления:
+Only what does not depend on the project - the update type:
 
-| Тип | Поведение |
+| Type | Behaviour |
 |---|---|
-| `digest` / `pin` | автомерж |
-| `patch` | автомерж, выдержка 14 дней |
-| `minor` | PR, мерж руками |
-| `major` | PR только после галочки в Dependency Dashboard, автомержа нет никогда |
+| `digest` / `pin` | automerged |
+| `patch` | automerged, 14 day hold |
+| `minor` | PR, merged by hand |
+| `major` | PR only after a Dependency Dashboard tick, never automerged |
 
-Автомерж происходит ночью (01:00-05:00 UTC): плохое обновление не должно приезжать в рабочее
-время, особенно там, где мерж означает деплой.
+Automerge runs at night (01:00-05:00 UTC): a bad update should not land during working hours,
+least of all where merging means deploying.
 
-Выдержка перед автомержем больше глобальной (14 дней против 7) намеренно. Автомерженный релиз -
-это релиз, который никто не прочитал перед выкатом, и две недели дают времени снять с реестра
-скомпрометированный пакет.
+The hold before an automerge is longer than the global one (14 days against 7) deliberately. An
+automerged release is one nobody read before it shipped, and two weeks is roughly what it takes
+for a compromised package to be pulled from its registry.
 
-## Что решает слой k8s-platform
+## What the k8s-platform layer decides
 
-Классифицирует типовые компоненты кластера по одному признаку - **что стоит откат**:
+It classifies the usual cluster components by one question - **what does a rollback cost**:
 
-| Группа | Поведение | Почему |
+| Group | Behaviour | Why |
 |---|---|---|
-| external-dns, cert-manager, reloader, tailscale-operator, blackbox-exporter, image-updater | minor+patch автомержем | своих данных нет, худший случай - revert и пересинк |
-| longhorn, vault, external-secrets | руками | плохой апгрейд уносит данные, revert их не вернёт |
-| cloudnative-pg, plugin-barman-cloud | руками, одной группой | оператор, чарт кластера и плагин бэкапов двигаются вместе |
-| mariadb, mysql, postgres, redis, valkey, mongo | руками | СУБД обновляет своё состояние на диске при первом старте |
-| traefik, ingress-nginx, authentik, keycloak | руками | поломка закрывает доступ ко всему, включая GitOps-контроллер |
-| argo-cd, flux2 | руками | сломанный апгрейд нельзя починить тем, что сломано |
-| `*-operator`, CRD | руками | состояние реконсиляции и схемы, которые не удаляются при откате |
+| external-dns, cert-manager, reloader, tailscale-operator, blackbox-exporter, image-updater | minor + patch automerged | own no data, worst case is a revert and a resync |
+| longhorn, vault, external-secrets | by hand | a bad upgrade takes the data with it, and a revert does not bring it back |
+| cloudnative-pg, plugin-barman-cloud | by hand, one group | operator, cluster chart and backup plugin move together or not at all |
+| mariadb, mysql, postgres, redis, valkey, mongo | by hand | a database upgrades its own on-disk state on first start |
+| traefik, ingress-nginx, authentik, keycloak | by hand | breaking one locks everything behind it out, including the GitOps controller used to fix it |
+| argo-cd, flux2 | by hand | a broken upgrade cannot be fixed by the thing that is broken |
+| `*-operator`, CRDs | by hand | reconciliation state, and schemas that a downgrade does not prune |
 
-Эти имена лежат здесь, а не в каждом репозитории, потому что их суть не меняется от кластера к
-кластеру: Longhorn владеет томами везде, где он есть, а external-dns не владеет ничем.
+These names live here rather than in every repository because what they are does not change
+between clusters: Longhorn owns volumes wherever it runs, and external-dns owns nothing wherever
+it runs.
 
-## Чего пресеты не решают
+## What the presets do not decide
 
-Всё, чей смысл **локален**: образ, собираемый в самом репозитории; версия, приколоченная к другой
-версии; узел, обновляемый руками. В общий пресет это выносить нельзя - в чужом репозитории оно
-либо бесполезно, либо вредно.
+Anything whose meaning is **local**: an image built in the repository itself, a version pinned to
+match another component, a node upgraded by hand. Such rules must not be shared - in someone
+else's repository they are either useless or harmful.
 
 ```json
 {
@@ -98,7 +99,7 @@
   ],
   "packageRules": [
     {
-      "description": "Версия должна совпадать с helm внутри argocd-repo-server, а не быть новейшей.",
+      "description": "Must match the helm bundled in argocd-repo-server, not the newest helm.",
       "matchManagers": ["github-actions"],
       "matchDepNames": ["helm"],
       "enabled": false
@@ -107,9 +108,9 @@
 }
 ```
 
-Правила репозитория идут после подключённых пресетов и поэтому перекрывают их.
+Repository rules come after the extended presets and therefore override them.
 
-## Обязательное условие
+## Prerequisite
 
-Renovate автомержит только по зелёным проверкам. В репозитории без CI автомерж не доказывает
-ничего - сначала проверки, потом этот пресет.
+Renovate only automerges on green checks. In a repository without CI, automerge proves nothing -
+checks first, then this preset.
