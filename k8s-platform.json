@@ -26,6 +26,12 @@
       "groupName": "storage and secrets"
     },
     {
+      "description": "Longhorn supports one minor step at a time and enforces it: its manager, webhook and recovery-backend pods refuse to start on an unsupported path rather than warn. A single PR that skips a minor therefore takes the storage control plane down instead of upgrading it. One PR per minor keeps the path walkable, and it leaves the group above so a storage upgrade is never bundled with anything else.",
+      "matchDepNames": ["longhorn"],
+      "separateMultipleMinor": true,
+      "groupName": "longhorn"
+    },
+    {
       "description": "Postgres: operator, cluster chart and backup plugin move together or not at all.",
       "matchDepNames": ["cloudnative-pg", "plugin-barman-cloud"],
       "automerge": false,

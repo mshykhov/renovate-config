@@ -75,6 +75,7 @@ It classifies the usual cluster components by one question - **what does a rollb
 |---|---|---|
 | external-dns, cert-manager, reloader, tailscale-operator, blackbox-exporter, image-updater | minor + patch automerged | own no data, worst case is a revert and a resync |
 | longhorn, vault, external-secrets | by hand | a bad upgrade takes the data with it, and a revert does not bring it back |
+| longhorn | additionally, one PR per minor | it supports a single minor step at a time and enforces it - the pods refuse to start on a skipped path rather than warn |
 | cloudnative-pg, plugin-barman-cloud | by hand, one group | operator, cluster chart and backup plugin move together or not at all |
 | mariadb, mysql, postgres, redis, valkey, mongo | by hand | a database upgrades its own on-disk state on first start |
 | traefik, ingress-nginx, authentik, keycloak | by hand | breaking one locks everything behind it out, including the GitOps controller used to fix it |
