@@ -1,0 +1,61 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "Classification of the usual Kubernetes platform components, for clusters that run them. Separate from the base preset because it is an opinion about specific software, not about update types - a repository that runs none of this should not inherit it.",
+    "The names are here rather than in each repository because what they are does not change between clusters: Longhorn owns volumes wherever it runs, and external-dns owns nothing wherever it runs. Anything whose meaning IS local - an image built in-repo, a version pinned to match another component, a node upgraded by hand - belongs to the repository, not here."
+  ],
+  "packageRules": [
+    {
+      "description": "Owns no data: the worst case is a revert and a resync, not a restore. cert-manager qualifies because a failed issuance leaves the existing certificate serving until someone fixes it.",
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchDepNames": [
+        "external-dns",
+        "cert-manager",
+        "reloader",
+        "tailscale-operator",
+        "prometheus-blackbox-exporter",
+        "argocd-image-updater"
+      ],
+      "automerge": true,
+      "groupName": "low-risk platform components"
+    },
+    {
+      "description": "Storage and secrets: a bad upgrade takes the data with it, and a revert does not bring it back.",
+      "matchDepNames": ["longhorn", "vault", "external-secrets"],
+      "automerge": false,
+      "groupName": "storage and secrets"
+    },
+    {
+      "description": "Postgres: operator, cluster chart and backup plugin move together or not at all.",
+      "matchDepNames": ["cloudnative-pg", "plugin-barman-cloud"],
+      "automerge": false,
+      "groupName": "postgres"
+    },
+    {
+      "description": "Databases upgrade their own on-disk state on first start, so swapping the image is not a revertable change.",
+      "matchDepNames": ["mariadb", "mysql", "postgres", "postgresql", "redis", "valkey", "mongo"],
+      "automerge": false
+    },
+    {
+      "description": "Ingress and SSO: breaking either one locks everything behind it out, including the GitOps controller used to fix it.",
+      "matchDepNames": ["traefik", "ingress-nginx", "authentik", "keycloak"],
+      "automerge": false,
+      "groupName": "ingress and sso"
+    },
+    {
+      "description": "GitOps itself: a broken upgrade cannot be fixed by the thing that is broken.",
+      "matchDepNames": ["argo-cd", "argocd", "flux2"],
+      "automerge": false
+    },
+    {
+      "description": "CRDs are cluster-scoped and are not pruned on downgrade, so a revert leaves the new schema in place.",
+      "matchDepNames": ["prometheus-operator-crds"],
+      "automerge": false
+    },
+    {
+      "description": "Operators carry reconciliation state and own the resources they manage; a bad version acts on every instance at once.",
+      "matchPackageNames": ["/-operator$/"],
+      "automerge": false
+    }
+  ]
+}
