@@ -5,7 +5,8 @@
   "description": [
     "Shared update policy. It decides by update type, never by package name: a name list is what makes a config unportable, so names stay in the repository that knows what they mean.",
     "The line it draws: automerge whatever costs a revert when it goes wrong, and hold whatever costs data or an outage. A repository tightens this by adding automerge:false rules for its own stateful pieces, and widens it by adding minor automerge for the stateless ones.",
-    "This assumes the repository has checks worth waiting for. Renovate merges only on green, so a repo with no CI gets an automerge that proves nothing."
+    "This assumes the repository has checks worth waiting for. Renovate merges only on green, so a repo with no CI gets an automerge that proves nothing.",
+    "rangeStrategy is update-lockfile because a manifest full of open ranges (httpx >=0.27, ^1.2.0) is already satisfied by every new release, so there is nothing in it to edit and Renovate would propose nothing at all. The version that actually ships is the one in the lock file, so that is what gets updated - and each dependency still gets its own PR with a real patch/minor type, which is what makes the table below apply. Out-of-range updates still edit the manifest."
   ],
   "dependencyDashboard": true,
   "internalChecksFilter": "strict",
@@ -13,6 +14,13 @@
   "prHourlyLimit": 4,
   "minimumReleaseAge": "7 days",
   "platformAutomerge": false,
+  "rangeStrategy": "update-lockfile",
+  "lockFileMaintenance": {
+    "description": "Transitive dependencies appear in no manifest, so nothing above ever proposes them and they rot in the lock. Weekly, by hand: unlike a normal update this deletes the lock and regenerates it at whatever is newest, so the 14-day hold does not apply to it and automerging would land unread releases the same day they ship.",
+    "enabled": true,
+    "schedule": ["before 5am on monday"],
+    "automerge": false
+  },
   "packageRules": [
     {
       "description": "Digest updates carry no version change - the tag already said what it wanted, and this is how a pinned SHA stays current instead of rotting.",
