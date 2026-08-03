@@ -23,8 +23,8 @@ about update types, and a repository without a cluster has no use for it.
    {
      "$schema": "https://docs.renovatebot.com/renovate-schema.json",
      "extends": [
-       "github>mshykhov/renovate-config",
-       "github>mshykhov/renovate-config:k8s-platform"
+       "local>mshykhov/renovate-config",
+       "local>mshykhov/renovate-config:k8s-platform"
      ]
    }
    ```
@@ -66,6 +66,28 @@ least of all where merging means deploying.
 The hold before an automerge is longer than the global one (14 days against 7) deliberately. An
 automerged release is one nobody read before it shipped, and two weeks is roughly what it takes
 for a compromised package to be pulled from its registry.
+
+### Where there is a lock file
+
+The table above only works if Renovate has an update to classify, and in a repository whose
+manifest is written in open ranges - `httpx >=0.27`, `fastapi >=0.115`, `^1.2.0` - it has none.
+Every new release already satisfies the range, so there is nothing in the manifest to edit, and
+the version that actually ships is the one written in `uv.lock` / `package-lock.json` /
+`Cargo.lock`. Left alone, that file never moves and the repository quietly stops receiving
+updates at all, security fixes included, while the dashboard looks healthy.
+
+So the preset sets `rangeStrategy: "update-lockfile"`: an in-range release updates the lock and
+leaves the manifest untouched, an out-of-range one edits the manifest as before. Either way it is
+a normal update with a real `patch`/`minor` type, so everything in the table applies to it -
+patches automerge after their 14 days, minors wait for a human.
+
+`lockFileMaintenance` runs weekly on top of that, for the transitive dependencies that appear in
+no manifest and that nothing else would ever propose. It is **not** automerged, and that is not an
+oversight: it deletes the lock and regenerates it at whatever is newest, which is the one update
+path the 14-day hold does not cover.
+
+The trade-off is deliberate: the manifest stops recording which version is in use. The lock is
+what the build reads, so that is where the truth is kept.
 
 ## What the k8s-platform layer decides
 
