@@ -89,6 +89,22 @@ path the 14-day hold does not cover.
 The trade-off is deliberate: the manifest stops recording which version is in use. The lock is
 what the build reads, so that is where the truth is kept.
 
+### Where the manifest is a deployed application, pin instead
+
+The above is the right shape for a library, whose ranges exist so that consumers can resolve
+them. For an application it is worth pinning exactly - `fastapi==0.139.0`, not `fastapi>=0.115` -
+and letting the manifest stay in charge.
+
+Beyond reproducibility there is a concrete failure behind this. Measured with uv on 2026-08-03:
+Renovate picks the version that has cleared its hold and asks the package manager for it, but
+`uv lock --upgrade-package fastapi` resolves to the newest release that satisfies the range and
+ignores that choice. Renovate had selected the held `0.140.2`; the lock came out at `0.141.1`,
+five days old. The hold this preset is built around was bypassed, and every such PR failed its
+own artifact check - visible, but as a broken PR rather than as a policy.
+
+With an exact pin the requested version is the only one that satisfies the manifest, so the
+package manager has nothing to choose and the hold means what it says.
+
 ## What the k8s-platform layer decides
 
 It classifies the usual cluster components by one question - **what does a rollback cost**:
