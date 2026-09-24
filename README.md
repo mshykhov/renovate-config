@@ -20,6 +20,8 @@ Omit the second preset for projects without Kubernetes. Repository settings and 
 
 ## Base policy
 
+Renovate creates and refreshes dependency branches only on Monday from 00:00 through 04:59 UTC. Existing branches are not force-pushed outside that window. Each repository is limited to three concurrent dependency branches, two CI-triggering commits per hour, and two new pull requests per hour. This bounds normal dependency automation to at most ten branch creations or rebases per repository during the weekly window. Renovate security-alert updates may bypass schedules and rate limits by design.
+
 | Update | Default handling |
 |---|---|
 | Digest / pin | Automerge when eligible |
@@ -28,7 +30,7 @@ Omit the second preset for projects without Kubernetes. Repository settings and 
 | Major | Dashboard approval before PR creation; manual merge |
 | Lock-file maintenance | Weekly, before 05:00 Monday UTC; manual merge |
 
-The global release-age delay is 7 days. Automerge is scheduled for 01:00-05:00 UTC and performed by Renovate rather than platform automerge. Required checks and branch protection should be configured in each consuming repository. Release age is a delay, not a guarantee that an update is safe.
+The global release-age delay is 7 days. Automerge is scheduled for Monday 01:00-04:59 UTC and performed by Renovate rather than platform automerge. Required checks and branch protection should be configured in each consuming repository. Release age is a delay, not a guarantee that an update is safe.
 
 `rangeStrategy: "update-lockfile"` updates supported lock files for in-range releases. For applications that need exact deployed versions, use exact dependency pins and inspect the resulting lock-file diff.
 
